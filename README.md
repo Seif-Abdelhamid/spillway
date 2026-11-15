@@ -183,43 +183,6 @@ code 1.
 > project was built. It has not been run against a real AWS account. The test fixtures are
 > built the same way.
 
-## How this was built
-
-Spillway was built with Claude (Anthropic's AI assistant), AI-assisted from design to tests. The
-choice of problem, the attacker model and the fail-closed rules were picked to match what
-cloud-security internship postings ask for (IAM least privilege, policy-as-code, CSPM-style
-checks, CI security gates). Every behavior described above is covered by the test suite. Seif
-reviewed the design and is responsible for being able to explain and defend it.
-
-## What Seif should be able to explain
-
-1. **Why evaluate against an attacker, not a request.** Spillway asks "can someone shape a
-   request so it is allowed?". That is why `aws:Referer` counts as attacker-chosen, and a VPC
-   endpoint condition counts as absent for internet callers.
-2. **Three-valued logic and fail-closed.** UNKNOWN Allows are reported as conditional, UNKNOWN
-   Denies are never trusted, and unparseable or apply-time policies become SPW005 instead of a
-   silent pass. Be ready to discuss the trade-off between false positives and false negatives.
-3. **IAM evaluation order.** An explicit Deny that surely applies wins, then Allow. Negated
-   operators (`StringNotEquals`) match when a key is absent, which is why
-   "Deny unless aws:PrincipalOrgID = o-…" also blocks anonymous callers. `…IfExists` and `Null`
-   work differently.
-4. **Why diff before and after.** A gate that fails on old debt gets disabled. Fingerprints of
-   rule, address and key let the PR fail only on exposure it adds, while still listing existing
-   and fixed findings.
-5. **How Block Public Access interacts with policies and ACLs.** `RestrictPublicBuckets`
-   neutralizes public-policy grants. `BlockPublicPolicy` makes the PutBucketPolicy call fail but
-   does not remove an existing policy. `IgnorePublicAcls` and `BucketOwnerEnforced` disable ACL
-   grants.
-6. **GitHub OIDC trust.** Without a `sub` condition pinned to `repo:owner/name`, any repository
-   on GitHub can get a token for your role. Explain `aud` vs `sub`, and why the `pull_request`
-   event is safer than `pull_request_target`.
-7. **Treating the plan as untrusted input.** Size and depth caps, strict schema checks, output
-   sanitization against workflow-command and ANSI injection, and exit code 2 for "could not
-   analyze".
-8. **Limits of static analysis.** Know what Spillway does not model (SCPs, KMS, access points,
-   multi-valued keys), and how you would check it against real AWS (IAM Access Analyzer, or
-   `aws iam simulate-custom-policy`) before trusting it in production.
-
 ## License
 
 MIT, see [LICENSE](LICENSE).
