@@ -1,6 +1,0 @@
-{
-  "name": "spillway",
-  "description": "Terraform plan gate: who can reach your S3 buckets and IAM roles after this change? Attacker-model diff, SARIF",
-  "topics": ["cloud-security", "aws", "iam", "s3", "terraform", "policy-as-code", "least-privilege", "cspm", "sarif", "github-actions", "devsecops", "python"],
-  "tests_passed": true
-}
