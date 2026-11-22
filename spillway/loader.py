@@ -26,6 +26,7 @@ class Resource:
     name: str
     values: dict
     unknown: frozenset[str] = frozenset()  # top-level attributes "known after apply"
+    from_source: frozenset[str] = frozenset()  # attributes recovered from .tf source (see source.py)
 
     def get(self, attr: str):
         return self.values.get(attr)

@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from spillway.findings import Finding, severity_rank
 from spillway.iam import analyze_identity_policies, analyze_roles
 from spillway.loader import Document, Snapshot
 from spillway.s3 import analyze_buckets
+from spillway.source import recover_policies, source_note
 
 
 def analyze_snapshot(snap: Snapshot, account_id: str | None = None) -> list[Finding]:
     findings = analyze_buckets(snap, account_id) + analyze_roles(snap, account_id) + analyze_identity_policies(snap)
+    findings = [replace(f, message=f.message + source_note(snap.resources.get(f.address))) for f in findings]
     unique = {f.fingerprint: f for f in findings}
     return sorted(unique.values(), key=lambda f: (-severity_rank(f.severity), f.address, f.rule_id, f.key))
 
@@ -35,8 +37,14 @@ class Result:
         return [f for f in pool if not f.suppressed and severity_rank(f.severity) >= severity_rank(fail_on)]
 
 
-def analyze(doc: Document, account_id: str | None = None) -> Result:
-    after = analyze_snapshot(doc.after, account_id)
+def analyze(doc: Document, account_id: str | None = None, tf_dir: str | None = None) -> Result:
+    """Diff findings between the before and after snapshots.
+
+    With ``tf_dir``, policies the plan leaves unknown until apply are read from the .tf source
+    when every reference in them resolves at plan time (see source.py); otherwise they stay SPW005.
+    """
+    after_snap = recover_policies(doc.after, tf_dir, account_id) if tf_dir and doc.kind == "plan" else doc.after
+    after = analyze_snapshot(after_snap, account_id)
     before = analyze_snapshot(doc.before, account_id) if doc.before.resources else []
     before_fp = {f.fingerprint for f in before}
     after_fp = {f.fingerprint for f in after}

@@ -35,7 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="fail only on findings this change introduces (default) or on every current finding",
     )
     p.add_argument("--account-id", help="your 12-digit AWS account ID, to tell own accounts from external ones")
-    p.add_argument("--tf-dir", help="Terraform root module directory, to add file:line locations to SARIF")
+    p.add_argument(
+        "--tf-dir",
+        help="Terraform root module directory: adds file:line locations to SARIF and lets Spillway read policies "
+        "the plan leaves unknown until apply",
+    )
     p.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES, help=argparse.SUPPRESS)
     return p
 
@@ -51,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"spillway: {exc}", file=sys.stderr)
         return 2
 
-    result = analyze(doc, args.account_id)
+    result = analyze(doc, args.account_id, tf_dir=args.tf_dir)
     gated = result.gated(args.fail_on, args.gate)
     if args.format == "json":
         report = to_json(result, gated)

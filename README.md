@@ -57,6 +57,11 @@ then conditions), against an attacker model, and reports what is reachable:
   fingerprints. `--gate new` (the default) fails the build only on what the PR introduces.
 * **SARIF 2.1.0** with `security-severity`, partial fingerprints, ATT&CK technique per rule, and
   `file:line` from `--tf-dir`, ready for `github/codeql-action/upload-sarif`.
+* **Policies unknown until apply**: when a bucket is created in the same plan, its policy
+  references `aws_s3_bucket.x.arn`, so the plan JSON holds no policy text at all. With
+  `--tf-dir`, Spillway reads that policy from the `.tf` source (`jsonencode({...})`, heredoc or
+  quoted JSON), fills in the bucket ARN from the bucket name the plan does know, and evaluates
+  it. If any piece does not resolve at plan time, it stays SPW005 (fail closed).
 * **Also scans applied state** (`terraform show -json` without a plan) for a posture check of
   what is deployed now.
 * **Accept-in-code for public read**: a bucket tag `spillway:accept-public-read = "<reason>"`
@@ -105,7 +110,8 @@ controls, so Spillway treats it as untrusted input:
 |---|---|
 | Huge or deeply nested JSON to crash or hang the gate | 50 MB file cap; `RecursionError` caught; policy documents capped at 64 KB |
 | Malformed policy that "parses as nothing" and so looks clean | Fail closed: SPW005 finding (medium), never "no exposure" |
-| Policy computed at apply time hides a public grant | Fail closed: SPW005; scan applied state afterwards |
+| Policy computed at apply time hides a public grant | With `--tf-dir`, read from source when every reference resolves; otherwise fail closed with SPW005 |
+| Hostile `.tf` source crafted to crash or hang the source reader | Hand-written parser for a small subset, nothing executed; file count, file size, nesting depth and policy size caps; any parse error falls back to SPW005; fuzzed with 3,000 mutated files |
 | A Sid such as `"x\n::error::..."` or ANSI escapes injecting GitHub workflow commands or terminal escapes | Text output strips C0/C1 control characters and line separators (tested) |
 | Suppressing a real finding | Suppression is a tag in reviewed Terraform code, needs a justification, covers public *read* only, and appears in SARIF as `inSource` suppression |
 | Broken input mistaken for a pass | Distinct exit codes: 0 pass, 1 gate failed, 2 cannot analyze |
@@ -116,9 +122,25 @@ identity-side permissions of the attacker, SCPs or RCPs, KMS key policies, acces
 `ForAnyValue`/`ForAllValues` operators, which are UNKNOWN. "Public" is approximated by the two
 probes rather than AWS's exact definition. A bucket with no Block Public Access resource in the
 plan is not assumed protected. AWS turns it on by default for new buckets, but the plan cannot
-show account history. For buckets created in the same plan, a policy that references
-`aws_s3_bucket.x.arn` is unknown until apply. Spillway reports that as SPW005 instead of
-guessing.
+show account history. For a policy unknown until apply, the source reader handles only
+root-module resources without `count`/`for_each`, and resolves only known plan values, bucket
+and role ARNs (in the `aws` partition) and `data.aws_caller_identity` (from `--account-id`).
+Variables, locals, function calls and template directives are not evaluated, so those policies
+stay SPW005 instead of being guessed.
+
+## Validated on a live AWS account
+
+On 2026-11-22 Spillway was run against real `terraform plan` and `terraform show -json` output
+from a personal AWS account:
+
+* **Risky configuration, planned and never applied**: a bucket policy granting `s3:GetObject`
+  to `*` behind an `aws:Referer` condition, Block Public Access partly off, and a GitHub OIDC
+  role trusting `repo:*`. Before this release the bucket policy was SPW005 (unknown until
+  apply). With `--tf-dir` the gate reports SPW103 (critical), SPW001 public read under
+  `shared/` (high, Referer noted as requester-controlled) and SPW006.
+* **Safe configuration, applied, scanned and destroyed**: a private bucket with all four Block
+  Public Access settings, a TLS-only Deny policy, and a role trusting only its own account with
+  an `sts:ExternalId`. Spillway reported no findings on the applied state.
 
 ## Architecture
 
@@ -137,6 +159,9 @@ terraform show -json ──► loader.py ──► Snapshot(before) ─┐
                            report.py: text (sanitized) · JSON · SARIF (+ locate.py file:line)
 ```
 
+`source.py` runs before the analyzers when `--tf-dir` is given and fills in policies the plan
+leaves unknown, marking them so findings say they were read from source.
+
 Resource linking: a policy, ACL or Block Public Access resource is tied to its bucket by bucket
 name. When the name is computed, Spillway uses the plan's `configuration` references
 (`aws_s3_bucket.shares.id`), pairing `count`/`for_each` instances by index.
@@ -150,7 +175,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e .                    # no runtime dependencies
 pip install -r requirements-dev.txt # tests, lint, scanners
 
-pytest --cov=spillway               # 150 tests
+pytest --cov=spillway               # 163 tests
 ruff check . && ruff format --check .
 bandit -c pyproject.toml -r spillway
 ```
