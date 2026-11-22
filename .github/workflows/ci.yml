@@ -1,0 +1,58 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Ruff (lint + format)
+        run: ruff check . && ruff format --check .
+      - name: Pytest
+        run: pytest --cov=spillway --cov-report=term --cov-fail-under=90
+      - name: The worked example must fail the gate (exit 1), not pass and not crash
+        run: |
+          set +e
+          python -m spillway examples/public-share/plan.json --tf-dir examples/public-share
+          code=$?
+          test "$code" -eq 1 || { echo "expected exit 1, got $code"; exit 1; }
+
+  security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install bandit==1.9.4 pip-audit==2.10.1
+      - name: Bandit (SAST)
+        run: bandit -c pyproject.toml -r spillway
+      - name: pip-audit (dev and CI dependencies; Spillway has no runtime dependencies)
+        run: pip-audit -r requirements-dev.txt
+
+  codeql:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3

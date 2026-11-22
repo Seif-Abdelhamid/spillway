@@ -1,0 +1,306 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "variables": {
+    "shares_bucket": {
+      "value": "acme-file-shares"
+    }
+  },
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_s3_bucket.shares",
+          "mode": "managed",
+          "type": "aws_s3_bucket",
+          "name": "shares",
+          "values": {
+            "bucket": "acme-file-shares",
+            "force_destroy": false,
+            "tags": null,
+            "object_lock_enabled": false,
+            "arn": "arn:aws:s3:::acme-file-shares",
+            "id": "acme-file-shares"
+          }
+        },
+        {
+          "address": "aws_s3_bucket_public_access_block.shares",
+          "mode": "managed",
+          "type": "aws_s3_bucket_public_access_block",
+          "name": "shares",
+          "values": {
+            "bucket": "acme-file-shares",
+            "block_public_acls": true,
+            "ignore_public_acls": true,
+            "block_public_policy": false,
+            "restrict_public_buckets": false,
+            "id": "acme-file-shares"
+          }
+        },
+        {
+          "address": "aws_s3_bucket_policy.shares",
+          "mode": "managed",
+          "type": "aws_s3_bucket_policy",
+          "name": "shares",
+          "values": {
+            "bucket": "acme-file-shares",
+            "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"ShareLinksFromOurSite\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::acme-file-shares/shared/*\",\"Condition\":{\"StringLike\":{\"aws:Referer\":\"https://share.example.com/*\"}}},{\"Sid\":\"UploadsFromTheVpcOnly\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:PutObject\",\"Resource\":\"arn:aws:s3:::acme-file-shares/incoming/*\",\"Condition\":{\"StringEquals\":{\"aws:SourceVpce\":\"vpce-0a1b2c3d4e5f60718\"}}},{\"Sid\":\"DenyPlainHttp\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"s3:*\",\"Resource\":[\"arn:aws:s3:::acme-file-shares\",\"arn:aws:s3:::acme-file-shares/*\"],\"Condition\":{\"Bool\":{\"aws:SecureTransport\":\"false\"}}}]}"
+          }
+        },
+        {
+          "address": "aws_iam_role.deploy",
+          "mode": "managed",
+          "type": "aws_iam_role",
+          "name": "deploy",
+          "values": {
+            "name": "shares-deploy",
+            "assume_role_policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"GitHubActions\",\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"},\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"token.actions.githubusercontent.com:aud\":\"sts.amazonaws.com\"},\"StringLike\":{\"token.actions.githubusercontent.com:sub\":\"repo:*\"}}}]}",
+            "path": "/"
+          }
+        },
+        {
+          "address": "aws_iam_role_policy.deploy",
+          "mode": "managed",
+          "type": "aws_iam_role_policy",
+          "name": "deploy",
+          "values": {
+            "name": "deploy",
+            "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"Everything\",\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\"},{\"Sid\":\"PassAnything\",\"Effect\":\"Allow\",\"Action\":[\"iam:PassRole\",\"lambda:UpdateFunctionCode\"],\"Resource\":\"*\"}]}"
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_s3_bucket.shares",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "shares",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "bucket": "acme-file-shares",
+          "force_destroy": false,
+          "tags": null,
+          "object_lock_enabled": false,
+          "arn": "arn:aws:s3:::acme-file-shares",
+          "id": "acme-file-shares"
+        },
+        "after": {
+          "bucket": "acme-file-shares",
+          "force_destroy": false,
+          "tags": null,
+          "object_lock_enabled": false,
+          "arn": "arn:aws:s3:::acme-file-shares",
+          "id": "acme-file-shares"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "aws_s3_bucket_public_access_block.shares",
+      "mode": "managed",
+      "type": "aws_s3_bucket_public_access_block",
+      "name": "shares",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "bucket": "acme-file-shares",
+          "block_public_acls": true,
+          "ignore_public_acls": true,
+          "block_public_policy": true,
+          "restrict_public_buckets": true,
+          "id": "acme-file-shares"
+        },
+        "after": {
+          "bucket": "acme-file-shares",
+          "block_public_acls": true,
+          "ignore_public_acls": true,
+          "block_public_policy": false,
+          "restrict_public_buckets": false,
+          "id": "acme-file-shares"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "aws_s3_bucket_policy.shares",
+      "mode": "managed",
+      "type": "aws_s3_bucket_policy",
+      "name": "shares",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "bucket": "acme-file-shares",
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"ShareLinksFromOurSite\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::acme-file-shares/shared/*\",\"Condition\":{\"StringLike\":{\"aws:Referer\":\"https://share.example.com/*\"}}},{\"Sid\":\"UploadsFromTheVpcOnly\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:PutObject\",\"Resource\":\"arn:aws:s3:::acme-file-shares/incoming/*\",\"Condition\":{\"StringEquals\":{\"aws:SourceVpce\":\"vpce-0a1b2c3d4e5f60718\"}}},{\"Sid\":\"DenyPlainHttp\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"s3:*\",\"Resource\":[\"arn:aws:s3:::acme-file-shares\",\"arn:aws:s3:::acme-file-shares/*\"],\"Condition\":{\"Bool\":{\"aws:SecureTransport\":\"false\"}}}]}"
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "aws_iam_role.deploy",
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "deploy",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "shares-deploy",
+          "assume_role_policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"GitHubActions\",\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"},\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"token.actions.githubusercontent.com:aud\":\"sts.amazonaws.com\"},\"StringLike\":{\"token.actions.githubusercontent.com:sub\":\"repo:*\"}}}]}",
+          "path": "/"
+        },
+        "after_unknown": {
+          "arn": true,
+          "id": true,
+          "unique_id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "aws_iam_role_policy.deploy",
+      "mode": "managed",
+      "type": "aws_iam_role_policy",
+      "name": "deploy",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "deploy",
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"Everything\",\"Effect\":\"Allow\",\"Action\":\"s3:*\",\"Resource\":\"*\"},{\"Sid\":\"PassAnything\",\"Effect\":\"Allow\",\"Action\":[\"iam:PassRole\",\"lambda:UpdateFunctionCode\"],\"Resource\":\"*\"}]}"
+        },
+        "after_unknown": {
+          "id": true,
+          "role": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "aws": {
+        "name": "aws",
+        "full_name": "registry.terraform.io/hashicorp/aws"
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_s3_bucket.shares",
+          "mode": "managed",
+          "type": "aws_s3_bucket",
+          "name": "shares",
+          "provider_config_key": "aws",
+          "expressions": {
+            "bucket": {
+              "references": [
+                "var.shares_bucket"
+              ]
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_s3_bucket_public_access_block.shares",
+          "mode": "managed",
+          "type": "aws_s3_bucket_public_access_block",
+          "name": "shares",
+          "provider_config_key": "aws",
+          "expressions": {
+            "bucket": {
+              "references": [
+                "aws_s3_bucket.shares.id",
+                "aws_s3_bucket.shares"
+              ]
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_s3_bucket_policy.shares",
+          "mode": "managed",
+          "type": "aws_s3_bucket_policy",
+          "name": "shares",
+          "provider_config_key": "aws",
+          "expressions": {
+            "bucket": {
+              "references": [
+                "aws_s3_bucket.shares.id",
+                "aws_s3_bucket.shares"
+              ]
+            },
+            "policy": {
+              "references": [
+                "var.shares_bucket"
+              ]
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_iam_role.deploy",
+          "mode": "managed",
+          "type": "aws_iam_role",
+          "name": "deploy",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "shares-deploy"
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_iam_role_policy.deploy",
+          "mode": "managed",
+          "type": "aws_iam_role_policy",
+          "name": "deploy",
+          "provider_config_key": "aws",
+          "expressions": {
+            "role": {
+              "references": [
+                "aws_iam_role.deploy.id",
+                "aws_iam_role.deploy"
+              ]
+            }
+          },
+          "schema_version": 0
+        }
+      ],
+      "variables": {
+        "shares_bucket": {
+          "default": "acme-file-shares"
+        }
+      }
+    }
+  }
+}
